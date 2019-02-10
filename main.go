@@ -50,6 +50,10 @@ func handleNewNotification(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func handleUpdate(w http.ResponseWriter, r *http.Request) {
+	go clientsBaseUpdate()
+}
+
 func clientsBaseUpdate() {
 	tmpList := []string{}
 	redisConn := redis.NewClient(&redis.Options{
@@ -78,13 +82,12 @@ func clientsBaseUpdate() {
 
 func main() {
 	clientsBaseUpdate()
-	// fs := http.FileServer(http.Dir(""))
-	// http.Handle("/", fs)
-	// http.HandleFunc("/ws/", handleConnections)
-	// http.HandleFunc("/broadcast/", handleNewNotification)
-	// log.Println("http server started on :8000")
-	// err := http.ListenAndServe("192.168.0.105:8000", nil)
-	// if err != nil {
-	// 	log.Fatal("ListenAndServe: ", err)
-	// }
+	http.HandleFunc("/update/", handleUpdate)
+	http.HandleFunc("/ws/", handleConnections)
+	http.HandleFunc("/broadcast/", handleNewNotification)
+	log.Println("http server started on :8001")
+	err := http.ListenAndServe(":8001", nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
 }
