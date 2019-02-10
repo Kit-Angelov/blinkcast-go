@@ -50,7 +50,8 @@ func handleNewNotification(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func clientsBaseInit() {
+func clientsBaseUpdate() {
+	tmpList := []string{}
 	redisConn := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
@@ -65,17 +66,18 @@ func clientsBaseInit() {
 			// handle error
 		}
 		for _, key := range keys {
-			guidsBase = append(guidsBase, key)
+			tmpList = append(tmpList, key)
 		}
 		if cursor == 0 {
 			break
 		}
 	}
+	guidsBase = tmpList
 	fmt.Println(guidsBase)
 }
 
 func main() {
-	clientsBaseInit()
+	clientsBaseUpdate()
 	// fs := http.FileServer(http.Dir(""))
 	// http.Handle("/", fs)
 	// http.HandleFunc("/ws/", handleConnections)
