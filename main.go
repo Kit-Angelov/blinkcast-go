@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"encoding/json"
-	"github.com/gorilla/websocket"
+
 	"github.com/go-redis/redis"
+	"github.com/gorilla/websocket"
 )
 
 var guidsBase []string
@@ -47,35 +47,31 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleNewNotification(w http.ResponseWriter, r *http.Request) {
-	
+
 }
 
-func clientsBaseInit () {
+func clientsBaseInit() {
 	redisConn := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
-		DB:       0, 
+		DB:       1,
 	})
 	var cursor uint64
 	for {
 		var keys []string
-    	var err error
-		keys, cursor, err = redisConn.Scan(cursor, "blinkcast:*", 10).Result()
+		var err error
+		keys, cursor, err = redisConn.Scan(cursor, "", 10).Result()
 		if err != nil {
 			// handle error
 		}
 		for _, key := range keys {
-			val, _ := redisConn.Get(key).Result()
-			bVal := []byte(val)
-			var valData redisClientData
-			json.Unmarshal(bVal, &valData)
-			guidsBase = append(guidsBase, valData.Guid)
+			guidsBase = append(guidsBase, key)
 		}
 		if cursor == 0 {
 			break
 		}
 	}
-	fmt.Println(guidsBase)	
+	fmt.Println(guidsBase)
 }
 
 func main() {
