@@ -38,13 +38,18 @@ func deleteClinet(token string, channel string, ws *websocket.Conn) {
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
-	channel := r.URL.Query()["channel"][0]
-	token := r.URL.Query()["token"][0]
-	println(channel)
-	println(token)
+	channelList := r.URL.Query()["channel"]
+	tokenList := r.URL.Query()["token"]
+
+	if len(channelList) == 0 || len(tokenList) == 0 {
+		return
+	}
+	channel := channelList[0]
+	token := tokenList[0]
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		log.Printf("error: %v", err)
 		return
 	}
 
@@ -60,7 +65,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clients[token][channel] = append(clients[token][channel], ws)
-	fmt.Println(clients)
 
 	for {
 		_, msg, err := ws.ReadMessage()
@@ -76,13 +80,22 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleMultiCast(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
 	err := r.ParseForm()
 	if err != nil {
+		log.Printf("error: %v", err)
 		return
 	}
 	token := r.Form.Get("token")
 	message := r.Form.Get("message")
 	channels := r.Form.Get("channels")
+
+	if len(token) == 0 || len(message) == 0 || len(channels) == 0 {
+		return
+	}
+
 	channelList := strings.Split(channels, ",")
 
 	if !checkToken(token) {
@@ -96,19 +109,25 @@ func handleMultiCast(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleBroadCast(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
 	err := r.ParseForm()
 	if err != nil {
+		log.Printf("error: %v", err)
 		return
 	}
 	token := r.Form.Get("token")
 	message := r.Form.Get("message")
-	println(token)
-	println(message)
+
+	if len(token) == 0 || len(message) == 0 {
+		return
+	}
+
 	if !checkToken(token) {
 		return
 	}
-	for val, connections := range clients[token] {
-		fmt.Println(val)
+	for _, connections := range clients[token] {
 		for _, conn := range connections {
 			conn.WriteMessage(websocket.TextMessage, []byte(message))
 		}
@@ -116,7 +135,11 @@ func handleBroadCast(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleUpdate(w http.ResponseWriter, r *http.Request) {
-	go clientsBaseUpdate()
+	if r.Method == http.MethodGet {
+		go clientsBaseUpdate()
+	} else {
+		return
+	}
 }
 
 func clientsBaseUpdate() {
@@ -132,7 +155,8 @@ func clientsBaseUpdate() {
 		var err error
 		keys, cursor, err = redisConn.Scan(cursor, "", 10).Result()
 		if err != nil {
-			// handle error
+			log.Printf("error: %v", err)
+			return
 		}
 		for _, key := range keys {
 			tmpDict[key] = true
@@ -152,7 +176,7 @@ func main() {
 	http.HandleFunc("/multicast/", handleMultiCast)
 	http.HandleFunc("/broadcast/", handleBroadCast)
 	log.Println("http server started on :8001")
-	err := http.ListenAndServe(":8001", nil)
+	err := http.ListenAndServe("192.168.0.105:8001", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

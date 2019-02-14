@@ -23,7 +23,7 @@
                     connect: function() {
                         var self = this;
                         
-                        this.ws = new WebSocket('ws://localhost:8001/ws/?channel=test3&token=92488200-7420-452d-9b44-2602af44b9fe');
+                        this.ws = new WebSocket('ws://192.168.0.105:8001/ws/?channel=test&token=92488200-7420-452d-9b44-2602af44b9fe');
                         this.ws.onerror = function(error) {
                             console.log("Ошибка " + error);
                         };
