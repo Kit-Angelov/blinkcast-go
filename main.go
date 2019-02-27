@@ -92,6 +92,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		return
+	}
 	tokenList := r.URL.Query()["token"]
 	if len(tokenList) == 0 {
 		return
@@ -204,7 +207,8 @@ func main() {
 	http.HandleFunc("/update/", handleUpdate)
 	http.HandleFunc("/ws/", handleConnections)
 	http.HandleFunc("/multicast/", handleMultiCast)
-	http.HandleFunc("/broadcast/", handleBroadCast)
+	http.HandleFunc("/broadcast/", handleBroadCast)handleGettingAccessKey
+	http.HandleFunc("/get-access-key/", handleGettingAccessKey)
 	log.Println("http server started on :8001")
 	err := http.ListenAndServe("192.168.0.105:8001", nil)
 	if err != nil {
