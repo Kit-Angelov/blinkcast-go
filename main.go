@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,9 +9,11 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
+	"github.com/satori/go.uuid"
 )
 
 var tokensBase = make(map[string]bool)
+var accessKeyBase = make(map[string]string)
 
 var clients = make(map[string]map[string][]*websocket.Conn)
 
@@ -24,9 +27,17 @@ type RedisClientData struct {
 	Token string
 }
 
+type AccessKeyStruct struct {
+	AccessKey string `json:"accessKey"`
+}
+
 func checkToken(guid string) bool {
 	ok := tokensBase[guid]
 	return ok
+}
+func checkAccessKey(guid string) bool {
+	token := accessKeyBase[guid]
+	return token
 }
 
 func deleteClinet(token string, channel string, ws *websocket.Conn) {
@@ -39,21 +50,21 @@ func deleteClinet(token string, channel string, ws *websocket.Conn) {
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	channelList := r.URL.Query()["channel"]
-	tokenList := r.URL.Query()["token"]
+	accessKeyList := r.URL.Query()["key"]
 
 	if len(channelList) == 0 || len(tokenList) == 0 {
 		return
 	}
 	channel := channelList[0]
-	token := tokenList[0]
+	accessKey := accessKeyList[0]
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("error: %v", err)
 		return
 	}
-
-	if !checkToken(token) {
+	token := checkAccessKey(accessKey)
+	if !token {
 		ws.Close()
 		return
 	}
@@ -70,6 +81,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
 			log.Printf("error: %v", err)
+			delete(accessKeyBase, accessKey)
 			deleteClinet(token, channel, ws)
 			break
 		}
@@ -77,6 +89,24 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			client.WriteMessage(websocket.TextMessage, msg)
 		}
 	}
+}
+
+func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
+	tokenList := r.URL.Query()["token"]
+	if len(tokenList) == 0 {
+		return
+	}
+	token := tokenList[0]
+	if !checkToken(token) {
+		return
+	}
+	guid := uuid.Must(uuid.NewV4())
+	sGuid := fmt.Sprintf("%s", guid)
+	accessKeyBase[sGuid] = token
+	responseBody := AccessKeyStruct{sGuid}
+	jsonResponse, err := json.Marshal(responseBody)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResponse)
 }
 
 func handleMultiCast(w http.ResponseWriter, r *http.Request) {
