@@ -207,7 +207,7 @@ func main() {
 	http.HandleFunc("/update/", handleUpdate)
 	http.HandleFunc("/ws/", handleConnections)
 	http.HandleFunc("/multicast/", handleMultiCast)
-	http.HandleFunc("/broadcast/", handleBroadCast)handleGettingAccessKey
+	http.HandleFunc("/broadcast/", handleBroadCast)handleGettingAccessKey)
 	http.HandleFunc("/get-access-key/", handleGettingAccessKey)
 	log.Println("http server started on :8001")
 	err := http.ListenAndServe("0.0.0.0:8001", nil)
