@@ -15,6 +15,7 @@ import (
 
 var tokensBase = make(map[string]bool)
 var accessKeyBase = make(map[string]string)
+var accessKeyDeleteBase = make(map[string]chan bool)
 
 var clients = make(map[string]map[string][]*websocket.Conn)
 
@@ -49,9 +50,25 @@ func deleteClinet(token string, channel string, ws *websocket.Conn) {
 	}
 }
 
-func deleteAccessKey(key string, ms time.Duration) {
-	time.Sleep(ms * time.Millisecond)
+func deleteAccessKey(key string) {
+	fmt.Println(accessKeyDeleteBase)
+	delta := 0
+	for delta < 10 {
+		select {
+		case <-accessKeyDeleteBase[key]:
+			fmt.Println(accessKeyDeleteBase)
+			delete(accessKeyDeleteBase, key)
+			fmt.Println("DELETESIGNAL")
+			return
+		default:
+			time.Sleep(1000 * time.Millisecond)
+			delta++
+		}
+	}
 	delete(accessKeyBase, key)
+	delete(accessKeyDeleteBase, key)
+	fmt.Println("DELETETIMEOUT")
+	return
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
@@ -65,10 +82,19 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	accessKey := accessKeyList[0]
 
 	token := checkAccessKey(accessKey)
-	delete(accessKeyBase, accessKey)
 	if len(token) == 0 {
+		fmt.Println("closeCONNECT")
 		return
 	}
+
+	fmt.Println("CLOSE")
+	accessKeyCh, ok := accessKeyDeleteBase[accessKey]
+	if ok {
+		fmt.Println(ok)
+		delete(accessKeyBase, accessKey)
+		close(accessKeyCh)
+	}
+	fmt.Println("CLOSED")
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -117,7 +143,9 @@ func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
 	jsonResponse, _ := json.Marshal(responseBody)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResponse)
-	go deleteAccessKey(sGuid, 10000)
+	ch := make(chan bool)
+	accessKeyDeleteBase[sGuid] = ch
+	go deleteAccessKey(sGuid)
 }
 
 func handleMultiCast(w http.ResponseWriter, r *http.Request) {
