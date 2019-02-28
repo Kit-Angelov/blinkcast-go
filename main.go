@@ -6,10 +6,11 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 var tokensBase = make(map[string]bool)
@@ -46,6 +47,11 @@ func deleteClinet(token string, channel string, ws *websocket.Conn) {
 			clients[token][channel] = append(clients[token][channel][:index], clients[token][channel][index+1:]...)
 		}
 	}
+}
+
+func deleteAccessKey(key string, ms time.Duration) {
+	time.Sleep(ms * time.Millisecond)
+	delete(accessKeyBase, key)
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
@@ -111,6 +117,7 @@ func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
 	jsonResponse, _ := json.Marshal(responseBody)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResponse)
+	go deleteAccessKey(sGuid, 10000)
 }
 
 func handleMultiCast(w http.ResponseWriter, r *http.Request) {

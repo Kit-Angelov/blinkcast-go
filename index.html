@@ -1,11 +1,12 @@
 <html>
     <head>
         <script src="https://unpkg.com/vue@2.1.3/dist/vue.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
     </head>
     <body>
         <div id="main">
             <input v-model="channel"/>
-            <button v-on:click="connect()">connect</button>
+            <button v-on:click="enter()">connect</button>
             <input v-model="newMsg"/>
             <button v-on:click="send()">asdf</button>
             <div id="chat-messages" class="card-content" v-html="chatContent"></div>
@@ -15,19 +16,30 @@
                 el: '#main',
                 data: {
                     ws: null, // Our websocket
+                    ws2: null,
                     newMsg: '', // Holds new messages to be sent to the server
                     channel: '',
-                    chatContent: '',
+                    chatContent: ''
                 },
                 methods: {
-                    connect: function() {
+                    enter: function() {
+                        axios
+                            .get('http://localhost:8001/get-access-key/?token=b43e40a8-6f02-4e43-8ca8-fc6158e189b8')
+                            .then(response => (
+                                console.log(response.data),
+                                this.connect(response.data.accessKey, this.ws),
+                                this.connect(response.data.accessKey, this.ws2)
+                                ))
+                            .catch(error => console.log(error));
+                    },
+                    connect: function(accessKey, ws) {
                         var self = this;
                         
-                        this.ws = new WebSocket('ws://192.168.0.105:8001/ws/?channel=test&token=92488200-7420-452d-9b44-2602af44b9fe');
-                        this.ws.onerror = function(error) {
+                        ws = new WebSocket('ws://localhost:8001/ws/?channel=test&key=' + accessKey);
+                        ws.onerror = function(error) {
                             console.log("Ошибка " + error);
                         };
-                        this.ws.addEventListener('message', function(e) {
+                        ws.addEventListener('message', function(e) {
                             var msg = JSON.parse(e.data);
                             console.log(msg);
                             self.chatContent += '<div class="message">'+msg['message']+'</div>';
