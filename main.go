@@ -35,7 +35,7 @@ func checkToken(guid string) bool {
 	ok := tokensBase[guid]
 	return ok
 }
-func checkAccessKey(guid string) bool {
+func checkAccessKey(guid string) string {
 	token := accessKeyBase[guid]
 	return token
 }
@@ -52,7 +52,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	channelList := r.URL.Query()["channel"]
 	accessKeyList := r.URL.Query()["key"]
 
-	if len(channelList) == 0 || len(tokenList) == 0 {
+	if len(channelList) == 0 || len(accessKeyList) == 0 {
 		return
 	}
 	channel := channelList[0]
@@ -60,7 +60,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	token := checkAccessKey(accessKey)
 	delete(accessKeyBase, accessKey)
-	if !token {
+	if len(token) == 0 {
 		return
 	}
 
@@ -107,7 +107,7 @@ func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
 	sGuid := fmt.Sprintf("%s", guid)
 	accessKeyBase[sGuid] = token
 	responseBody := AccessKeyStruct{sGuid}
-	jsonResponse, err := json.Marshal(responseBody)
+	jsonResponse, _ := json.Marshal(responseBody)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResponse)
 }
