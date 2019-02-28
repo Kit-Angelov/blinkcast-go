@@ -92,6 +92,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method != http.MethodGet {
 		return
 	}
@@ -113,6 +114,7 @@ func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleMultiCast(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method != http.MethodPost {
 		return
 	}
@@ -142,6 +144,7 @@ func handleMultiCast(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleBroadCast(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method != http.MethodPost {
 		return
 	}
