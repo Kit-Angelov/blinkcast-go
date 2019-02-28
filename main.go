@@ -58,14 +58,15 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	channel := channelList[0]
 	accessKey := accessKeyList[0]
 
+	token := checkAccessKey(accessKey)
+	delete(accessKeyBase, accessKey)
+	if !token {
+		return
+	}
+
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("error: %v", err)
-		return
-	}
-	token := checkAccessKey(accessKey)
-	if !token {
-		ws.Close()
 		return
 	}
 
@@ -81,7 +82,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
 			log.Printf("error: %v", err)
-			delete(accessKeyBase, accessKey)
 			deleteClinet(token, channel, ws)
 			break
 		}
@@ -210,7 +210,7 @@ func main() {
 	http.HandleFunc("/broadcast/", handleBroadCast)handleGettingAccessKey
 	http.HandleFunc("/get-access-key/", handleGettingAccessKey)
 	log.Println("http server started on :8001")
-	err := http.ListenAndServe("192.168.0.105:8001", nil)
+	err := http.ListenAndServe("0.0.0.0:8001", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
