@@ -14,10 +14,10 @@ import (
 )
 
 var tokensBase = make(map[string]bool)
-var accessKeyBase = make(map[string]string)
-var accessKeyDeleteBase = make(map[string]chan bool)
 
 var clients = make(map[string]map[string][]*websocket.Conn)
+
+var accessKeysCh = make(chan string)
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -37,10 +37,6 @@ func checkToken(guid string) bool {
 	ok := tokensBase[guid]
 	return ok
 }
-func checkAccessKey(guid string) string {
-	token := accessKeyBase[guid]
-	return token
-}
 
 func deleteClinet(token string, channel string, ws *websocket.Conn) {
 	for index, current_ws := range clients[token][channel] {
@@ -48,27 +44,6 @@ func deleteClinet(token string, channel string, ws *websocket.Conn) {
 			clients[token][channel] = append(clients[token][channel][:index], clients[token][channel][index+1:]...)
 		}
 	}
-}
-
-func deleteAccessKey(key string) {
-	fmt.Println(accessKeyDeleteBase)
-	delta := 0
-	for delta < 10 {
-		select {
-		case <-accessKeyDeleteBase[key]:
-			fmt.Println(accessKeyDeleteBase)
-			delete(accessKeyDeleteBase, key)
-			fmt.Println("DELETESIGNAL")
-			return
-		default:
-			time.Sleep(1000 * time.Millisecond)
-			delta++
-		}
-	}
-	delete(accessKeyBase, key)
-	delete(accessKeyDeleteBase, key)
-	fmt.Println("DELETETIMEOUT")
-	return
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
@@ -81,20 +56,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	channel := channelList[0]
 	accessKey := accessKeyList[0]
 
-	token := checkAccessKey(accessKey)
-	if len(token) == 0 {
+	token, res := checkAccessKey(accessKey)
+
+	if !res {
 		fmt.Println("closeCONNECT")
 		return
 	}
-
-	fmt.Println("CLOSE")
-	accessKeyCh, ok := accessKeyDeleteBase[accessKey]
-	if ok {
-		fmt.Println(ok)
-		delete(accessKeyBase, accessKey)
-		close(accessKeyCh)
-	}
-	fmt.Println("CLOSED")
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -123,6 +90,32 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func setAccessKey(accessKey, token string) {
+	redisConn := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       2,
+	})
+	_ = redisConn.Set(accessKey, token, 360*time.Second).Err()
+	redisConn.Close()
+}
+
+func checkAccessKey(accessKey string) (string, bool) {
+	redisConn := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       2,
+	})
+	defer redisConn.Close()
+	val, err := redisConn.Get(accessKey).Result()
+	if err == redis.Nil {
+		return "", false
+	} else {
+		_ = redisConn.Del(accessKey).Err()
+		return val, true
+	}
+}
+
 func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method != http.MethodGet {
@@ -138,14 +131,11 @@ func handleGettingAccessKey(w http.ResponseWriter, r *http.Request) {
 	}
 	guid := uuid.Must(uuid.NewV4())
 	sGuid := fmt.Sprintf("%s", guid)
-	accessKeyBase[sGuid] = token
+	setAccessKey(sGuid, token)
 	responseBody := AccessKeyStruct{sGuid}
 	jsonResponse, _ := json.Marshal(responseBody)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResponse)
-	ch := make(chan bool)
-	accessKeyDeleteBase[sGuid] = ch
-	go deleteAccessKey(sGuid)
 }
 
 func handleMultiCast(w http.ResponseWriter, r *http.Request) {

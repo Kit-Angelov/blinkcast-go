@@ -26,8 +26,8 @@
                         axios
                             .get('http://localhost:8001/get-access-key/?token=b43e40a8-6f02-4e43-8ca8-fc6158e189b8')
                             .then(response => (
-                                console.log(response.data)
-                                // this.connect(response.data.accessKey, this.ws)
+                                console.log(response.data),
+                                this.connect(response.data.accessKey, this.ws)
                                 // this.connect(response.data.accessKey, this.ws2)
                                 ))
                             .catch(error => console.log(error));
